@@ -1,32 +1,4 @@
-# YouTube Downloader - Railway Deployment
+YouTube downloader Extension Chromium  
 
-## Deploy to Railway
-
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/railway-youtube-downloader)
-
-## Installation Steps:
-
-1. **Create Railway Account:** https://railway.app
-2. **Connect GitHub:** Link your GitHub account
-3. **Deploy from GitHub:** Use this repository
-4. **Environment Variables:** Set PORT=5000 (Railway auto-assigns)
-
-## Features:
-- YouTube video downloading
-- Multiple quality options (360p, 480p, 720p, 1080p)
-- Clean temporary file management
-- CORS enabled for browser extensions
-
-## Usage:
-- Server URL: `https://web-production-7d830.up.railway.app`
-- API endpoints: `/video-info`, `/download`, `/qualities`
-
-## Live Demo:
-🚀 **Server Status:** https://web-production-7d830.up.railway.app/
-
-## Extension Installation:
-1. Download the extension files
-2. Open Chrome -> Extensions -> Developer Mode -> Load Unpacked
-3. Select the extension folder
-4. Visit any YouTube video page
-5. Click the download button that appears!
+<img width="1893" height="961" alt="Screenshot 2025-08-05 004826" src="https://github.com/user-attachments/assets/e5bdfa17-fea0-4366-a61c-abc67231dec5" />
+<img width="462" height="198" alt="Screenshot 2025-08-05 004912" src="https://github.com/user-attachments/assets/2943a406-7c48-40d6-9749-538de03c25e7" />
