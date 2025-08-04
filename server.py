@@ -448,7 +448,8 @@ if __name__ == "__main__":
                               capture_output=True, text=True, timeout=5)
         if result.returncode == 0:
             print("✅ FFmpeg is available and working")
-            print(f"   Version: {result.stdout.split('\\n')[0]}")
+            version_line = result.stdout.split('\n')[0]
+            print(f"   Version: {version_line}")
         else:
             print("⚠️ FFmpeg found but not working properly")
     except Exception as e:
