@@ -36,6 +36,21 @@ def check_rate_limit(ip_address):
         last_request_time[ip_address] = current_time
         return True
 
+# Rate limiting to avoid bot detection
+last_request_time = {}
+request_lock = threading.Lock()
+
+def check_rate_limit(ip_address):
+    """Check if the IP address is making too many requests"""
+    current_time = time.time()
+    with request_lock:
+        if ip_address in last_request_time:
+            time_diff = current_time - last_request_time[ip_address]
+            if time_diff < 3:  # Minimum 3 seconds between requests
+                return False
+        last_request_time[ip_address] = current_time
+        return True
+
 # User agents rotation to avoid bot detection
 USER_AGENTS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',

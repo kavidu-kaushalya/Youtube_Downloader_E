@@ -12,7 +12,7 @@ const CONFIG = {
   
   // Railway deployment (production)
   production: {
-    serverUrl: 'https://web-production-53e76.up.railway.app'  // Your Railway URL
+    serverUrl: 'https://web-production-7d830.up.railway.app'  // Updated Railway URL
   },
   
   // Replit deployment (backup)

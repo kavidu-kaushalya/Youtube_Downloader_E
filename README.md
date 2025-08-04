@@ -18,11 +18,11 @@
 - CORS enabled for browser extensions
 
 ## Usage:
-- Server URL: `https://web-production-53e76.up.railway.app`
+- Server URL: `https://web-production-7d830.up.railway.app`
 - API endpoints: `/video-info`, `/download`, `/qualities`
 
 ## Live Demo:
-🚀 **Server Status:** https://web-production-53e76.up.railway.app/
+🚀 **Server Status:** https://web-production-7d830.up.railway.app/
 
 ## Extension Installation:
 1. Download the extension files
