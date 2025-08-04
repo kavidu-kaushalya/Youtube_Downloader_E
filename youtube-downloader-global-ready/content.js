@@ -367,13 +367,13 @@ function addDownloadButton() {
             downloadBtn.textContent = "Download";
             downloadBtn.disabled = false;
             downloadBtn.style.opacity = "1";
-          }, 3000); // Increased delay for rate limiting
+          }, 2000);
           
-          // Keep popup open for 3 seconds to show download status
+          // Keep popup open for 2 seconds to show download status
           setTimeout(() => {
             popup.remove();
             overlay.remove();
-          }, 3000);
+          }, 2000);
           
         } catch (error) {
           console.error('Download failed:', error);
@@ -385,7 +385,7 @@ function addDownloadButton() {
             downloadBtn.style.color = "#3ea6ff";
             downloadBtn.disabled = false;
             downloadBtn.style.opacity = "1";
-          }, 5000); // Longer delay for error recovery
+          }, 3000);
         }
       };
 

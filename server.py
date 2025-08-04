@@ -8,6 +8,7 @@ import atexit
 from datetime import datetime, timedelta
 import threading
 import time
+import random
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -19,6 +20,75 @@ os.makedirs(TEMP_DIR, exist_ok=True)
 # Keep track of temporary files for cleanup
 temp_files = set()
 temp_files_lock = threading.Lock()
+
+# Rate limiting to avoid bot detection
+last_request_time = {}
+request_lock = threading.Lock()
+
+def check_rate_limit(ip_address):
+    """Check if the IP address is making too many requests"""
+    current_time = time.time()
+    with request_lock:
+        if ip_address in last_request_time:
+            time_diff = current_time - last_request_time[ip_address]
+            if time_diff < 3:  # Minimum 3 seconds between requests
+                return False
+        last_request_time[ip_address] = current_time
+        return True
+
+# User agents rotation to avoid bot detection
+USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:89.0) Gecko/20100101 Firefox/89.0'
+]
+
+def get_random_user_agent():
+    """Get a random user agent to avoid bot detection"""
+    return random.choice(USER_AGENTS)
+
+def get_ydl_opts(output_file=None, format_selector=None):
+    """Get yt-dlp options with anti-bot detection measures"""
+    base_opts = {
+        'quiet': False,
+        'no_warnings': False,
+        'user_agent': get_random_user_agent(),
+        'referer': 'https://www.youtube.com/',
+        'headers': {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-us,en;q=0.5',
+            'Accept-Encoding': 'gzip,deflate',
+            'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
+            'Keep-Alive': '300',
+            'Connection': 'keep-alive',
+        },
+        # Rate limiting to avoid triggering bot detection
+        'sleep_interval': random.uniform(1, 3),
+        'sleep_interval_requests': random.uniform(1, 2),
+        'sleep_interval_subtitles': random.uniform(1, 2),
+        # Retry settings
+        'extractor_retries': 3,
+        'fragment_retries': 3,
+        'http_chunk_size': 10485760,  # 10MB chunks
+        # Additional anti-detection measures
+        'geo_bypass': True,
+        'geo_bypass_country': 'US',
+        # Try to use different cookies
+        'cookiesfrombrowser': None,
+        # More aggressive retry
+        'retries': 5,
+    }
+    
+    if output_file:
+        base_opts['outtmpl'] = output_file
+    if format_selector:
+        base_opts['format'] = format_selector
+        base_opts['merge_output_format'] = 'mp4'
+    
+    return base_opts
 
 def cleanup_old_files():
     """Clean up files older than 1 hour"""
@@ -122,11 +192,9 @@ def get_video_info():
     url = f"https://www.youtube.com/watch?v={video_id}"
     
     try:
-        ydl_opts = {
-            'quiet': True,
-            'no_warnings': True,
-            'extract_flat': False
-        }
+        # Enhanced yt-dlp options to avoid bot detection
+        ydl_opts = get_ydl_opts()
+        ydl_opts['extract_flat'] = False
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             print(f"Fetching info for video: {video_id}")
@@ -178,6 +246,11 @@ def get_video_info():
 
 @app.route('/download')
 def download():
+    # Rate limiting check
+    client_ip = request.remote_addr
+    if not check_rate_limit(client_ip):
+        return jsonify({'error': 'Rate limit exceeded. Please wait a few seconds between downloads.'}), 429
+    
     video_id = request.args.get('videoId')
     quality = request.args.get('quality', 'best')  # Default to best quality
     
@@ -188,7 +261,10 @@ def download():
     
     # Get video title first
     try:
-        with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
+        # Enhanced options to avoid bot detection
+        title_opts = get_ydl_opts()
+        
+        with yt_dlp.YoutubeDL(title_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             video_title = info.get('title', video_id)
             # Clean filename - remove invalid characters
@@ -219,13 +295,8 @@ def download():
     # Get format string based on quality selection
     format_selector = quality_formats.get(quality, quality_formats['best'])
 
-    ydl_opts = {
-        'outtmpl': output_file,
-        'format': format_selector,
-        'merge_output_format': 'mp4',
-        'quiet': False,  # Enable output for debugging
-        'no_warnings': False
-    }
+    # Enhanced yt-dlp options to avoid bot detection
+    ydl_opts = get_ydl_opts(output_file, format_selector)
 
     try:
         # Clean up any existing file first
@@ -237,6 +308,9 @@ def download():
         print(f"URL: {url}")
         print(f"Output file: {output_file}")
         print(f"Format selector: {format_selector}")
+        
+        # Add random delay to avoid bot detection
+        time.sleep(random.uniform(0.5, 2.0))
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
@@ -254,7 +328,30 @@ def download():
         print(f"Download successful. File size: {file_size} bytes")
         
     except yt_dlp.DownloadError as e:
-        return f"YouTube download error: {str(e)}", 500
+        error_msg = str(e)
+        if "Sign in to confirm you're not a bot" in error_msg:
+            # Try with different approach for bot detection
+            print("Bot detection triggered, trying alternative method...")
+            try:
+                # Alternative download with different settings
+                alt_opts = get_ydl_opts(output_file, format_selector)
+                alt_opts.update({
+                    'quiet': True,
+                    'no_warnings': True,
+                    'extract_flat': False,
+                    'sleep_interval': random.uniform(2, 5),
+                    'user_agent': get_random_user_agent(),
+                    'cookiefile': None,  # Don't use cookies
+                    'age_limit': None,
+                })
+                
+                with yt_dlp.YoutubeDL(alt_opts) as ydl:
+                    ydl.download([url])
+                    
+            except Exception as alt_e:
+                return f"YouTube bot detection error. Please try again in a few minutes. Error: {str(alt_e)}", 429
+        else:
+            return f"YouTube download error: {error_msg}", 500
     except Exception as e:
         return f"Error downloading video: {str(e)}", 500
 

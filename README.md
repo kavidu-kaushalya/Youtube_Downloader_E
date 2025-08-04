@@ -18,5 +18,15 @@
 - CORS enabled for browser extensions
 
 ## Usage:
-- Server URL: `https://your-app-name.railway.app`
+- Server URL: `https://web-production-53e76.up.railway.app`
 - API endpoints: `/video-info`, `/download`, `/qualities`
+
+## Live Demo:
+🚀 **Server Status:** https://web-production-53e76.up.railway.app/
+
+## Extension Installation:
+1. Download the extension files
+2. Open Chrome -> Extensions -> Developer Mode -> Load Unpacked
+3. Select the extension folder
+4. Visit any YouTube video page
+5. Click the download button that appears!
