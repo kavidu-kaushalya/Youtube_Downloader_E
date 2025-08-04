@@ -56,3 +56,7 @@ ffmpeg-*/
 
 # Railway
 .railway/
+
+# Keep deployment files
+!start.sh
+!Dockerfile

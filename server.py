@@ -91,8 +91,9 @@ def get_ydl_opts(output_file=None, format_selector=None):
         # Additional anti-detection measures
         'geo_bypass': True,
         'geo_bypass_country': 'US',
-        # Try to use different cookies
-        'cookiesfrombrowser': None,
+        # Avoid ffmpeg requirement
+        'prefer_ffmpeg': False,
+        'abort_on_error': False,  # Don't abort on ffmpeg errors
         # More aggressive retry
         'retries': 5,
     }
@@ -101,7 +102,8 @@ def get_ydl_opts(output_file=None, format_selector=None):
         base_opts['outtmpl'] = output_file
     if format_selector:
         base_opts['format'] = format_selector
-        base_opts['merge_output_format'] = 'mp4'
+        # Remove merge_output_format to avoid ffmpeg requirement
+        # base_opts['merge_output_format'] = 'mp4'
     
     return base_opts
 
@@ -298,13 +300,13 @@ def download():
     with temp_files_lock:
         temp_files.add(output_file)
 
-    # Quality format mapping
+    # Quality format mapping - Updated to avoid ffmpeg requirement
     quality_formats = {
-        '360p': 'bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360][ext=mp4]/best[ext=mp4]',
-        '480p': 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]/best[ext=mp4]',
-        '720p': 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[ext=mp4]',
-        '1080p': 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best[ext=mp4]',
-        'best': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/mp4'
+        '360p': 'best[height<=360][ext=mp4]/best[height<=360]/mp4',
+        '480p': 'best[height<=480][ext=mp4]/best[height<=480]/mp4', 
+        '720p': 'best[height<=720][ext=mp4]/best[height<=720]/mp4',
+        '1080p': 'best[height<=1080][ext=mp4]/best[height<=1080]/mp4',
+        'best': 'best[ext=mp4]/best/mp4'
     }
     
     # Get format string based on quality selection
@@ -358,6 +360,8 @@ def download():
                     'user_agent': get_random_user_agent(),
                     'cookiefile': None,  # Don't use cookies
                     'age_limit': None,
+                    'abort_on_error': False,  # Don't abort on errors
+                    'prefer_ffmpeg': False,   # Avoid ffmpeg
                 })
                 
                 with yt_dlp.YoutubeDL(alt_opts) as ydl:
@@ -365,6 +369,21 @@ def download():
                     
             except Exception as alt_e:
                 return f"YouTube bot detection error. Please try again in a few minutes. Error: {str(alt_e)}", 429
+        elif "ffmpeg" in error_msg.lower() or "merging" in error_msg.lower():
+            # Handle ffmpeg/merging errors
+            print("FFmpeg error detected, trying single format download...")
+            try:
+                # Use single format without merging
+                simple_opts = get_ydl_opts(output_file)
+                simple_opts['format'] = 'best[ext=mp4]/best'  # Simple format
+                simple_opts['abort_on_error'] = False
+                simple_opts['prefer_ffmpeg'] = False
+                
+                with yt_dlp.YoutubeDL(simple_opts) as ydl:
+                    ydl.download([url])
+                    
+            except Exception as ffmpeg_e:
+                return f"Video download failed. Server configuration issue. Error: {str(ffmpeg_e)}", 500
         else:
             return f"YouTube download error: {error_msg}", 500
     except Exception as e:

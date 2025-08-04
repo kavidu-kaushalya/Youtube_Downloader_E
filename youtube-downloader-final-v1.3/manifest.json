@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Direct Downloader",
+  "version": "1.3",
+  "description": "Adds a download button to YouTube videos.",
+  "permissions": ["tabs", "scripting"],
+  "host_permissions": [
+    "http://localhost:5000/*",
+    "http://127.0.0.1:5000/*",
+    "http://192.168.1.8:5000/*",
+    "https://web-production-7d830.up.railway.app/*"
+  ],
+  "icons": {
+    "128": "icon.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["config.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["download.png", "downloadi.png", "youtube.png"],
+      "matches": ["https://www.youtube.com/*"]
+    }
+  ]
+}
