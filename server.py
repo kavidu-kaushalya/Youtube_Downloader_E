@@ -36,21 +36,6 @@ def check_rate_limit(ip_address):
         last_request_time[ip_address] = current_time
         return True
 
-# Rate limiting to avoid bot detection
-last_request_time = {}
-request_lock = threading.Lock()
-
-def check_rate_limit(ip_address):
-    """Check if the IP address is making too many requests"""
-    current_time = time.time()
-    with request_lock:
-        if ip_address in last_request_time:
-            time_diff = current_time - last_request_time[ip_address]
-            if time_diff < 3:  # Minimum 3 seconds between requests
-                return False
-        last_request_time[ip_address] = current_time
-        return True
-
 # User agents rotation to avoid bot detection
 USER_AGENTS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -67,6 +52,19 @@ def get_random_user_agent():
 
 def get_ydl_opts(output_file=None, format_selector=None):
     """Get yt-dlp options with anti-bot detection measures"""
+    
+    # Check if ffmpeg is available
+    ffmpeg_available = False
+    try:
+        import subprocess
+        result = subprocess.run(['ffmpeg', '-version'], 
+                              capture_output=True, text=True, timeout=5)
+        ffmpeg_available = result.returncode == 0
+        print(f"🔧 FFmpeg available: {ffmpeg_available}")
+    except:
+        print("⚠️ FFmpeg not detected, using fallback formats")
+        ffmpeg_available = False
+    
     base_opts = {
         'quiet': False,
         'no_warnings': False,
@@ -91,8 +89,8 @@ def get_ydl_opts(output_file=None, format_selector=None):
         # Additional anti-detection measures
         'geo_bypass': True,
         'geo_bypass_country': 'US',
-        # Avoid ffmpeg requirement
-        'prefer_ffmpeg': False,
+        # FFmpeg settings based on availability
+        'prefer_ffmpeg': ffmpeg_available,
         'abort_on_error': False,  # Don't abort on ffmpeg errors
         # More aggressive retry
         'retries': 5,
@@ -102,8 +100,9 @@ def get_ydl_opts(output_file=None, format_selector=None):
         base_opts['outtmpl'] = output_file
     if format_selector:
         base_opts['format'] = format_selector
-        # Remove merge_output_format to avoid ffmpeg requirement
-        # base_opts['merge_output_format'] = 'mp4'
+        # Only use merge format if ffmpeg is available
+        if ffmpeg_available and '+' in format_selector:
+            base_opts['merge_output_format'] = 'mp4'
     
     return base_opts
 
@@ -300,14 +299,33 @@ def download():
     with temp_files_lock:
         temp_files.add(output_file)
 
-    # Quality format mapping - Updated to avoid ffmpeg requirement
-    quality_formats = {
-        '360p': 'best[height<=360][ext=mp4]/best[height<=360]/mp4',
-        '480p': 'best[height<=480][ext=mp4]/best[height<=480]/mp4', 
-        '720p': 'best[height<=720][ext=mp4]/best[height<=720]/mp4',
-        '1080p': 'best[height<=1080][ext=mp4]/best[height<=1080]/mp4',
-        'best': 'best[ext=mp4]/best/mp4'
-    }
+    # Quality format mapping - Dynamic based on ffmpeg availability
+    try:
+        import subprocess
+        result = subprocess.run(['ffmpeg', '-version'], 
+                              capture_output=True, text=True, timeout=5)
+        ffmpeg_available = result.returncode == 0
+    except:
+        ffmpeg_available = False
+    
+    if ffmpeg_available:
+        print("✅ Using high-quality formats with ffmpeg")
+        quality_formats = {
+            '360p': 'bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360][ext=mp4]/best[height<=360]',
+            '480p': 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]/best[height<=480]', 
+            '720p': 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[height<=720]',
+            '1080p': 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best[height<=1080]',
+            'best': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+        }
+    else:
+        print("⚠️ Using fallback formats without ffmpeg")
+        quality_formats = {
+            '360p': 'best[height<=360][ext=mp4]/best[height<=360]/mp4',
+            '480p': 'best[height<=480][ext=mp4]/best[height<=480]/mp4', 
+            '720p': 'best[height<=720][ext=mp4]/best[height<=720]/mp4',
+            '1080p': 'best[height<=1080][ext=mp4]/best[height<=1080]/mp4',
+            'best': 'best[ext=mp4]/best/mp4'
+        }
     
     # Get format string based on quality selection
     format_selector = quality_formats.get(quality, quality_formats['best'])
@@ -421,15 +439,30 @@ def download():
         return f"Error sending file: {str(e)}", 500
 
 if __name__ == "__main__":
-    print("Starting YouTube Downloader Server...")
+    print("🚀 Starting YouTube Downloader Server...")
+    
+    # Check ffmpeg availability
+    try:
+        import subprocess
+        result = subprocess.run(['ffmpeg', '-version'], 
+                              capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            print("✅ FFmpeg is available and working")
+            print(f"   Version: {result.stdout.split('\\n')[0]}")
+        else:
+            print("⚠️ FFmpeg found but not working properly")
+    except Exception as e:
+        print(f"❌ FFmpeg not available: {e}")
+        print("   Using fallback single-format downloads")
+    
     port = int(os.environ.get("PORT", 5000))
     host = os.environ.get("HOST", "0.0.0.0")
     debug_mode = os.environ.get("DEBUG", "False").lower() == "true"
     
-    print(f"Server will run on http://{host}:{port}")
-    print(f"Temporary files will be stored in: {TEMP_DIR}")
-    print("Automatic cleanup: Files older than 1 hour will be removed every 5 minutes")
-    print("Available endpoints:")
+    print(f"🌐 Server will run on http://{host}:{port}")
+    print(f"📁 Temporary files will be stored in: {TEMP_DIR}")
+    print("🧹 Automatic cleanup: Files older than 1 hour will be removed every 5 minutes")
+    print("📋 Available endpoints:")
     print("  - GET /video-info?videoId=<id> - Get video information")
     print("  - GET /download?videoId=<id>&quality=<quality> - Download video")
     print("  - GET /qualities - Get available quality options")
